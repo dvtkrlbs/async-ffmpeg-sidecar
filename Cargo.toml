@@ -1,0 +1,9 @@
+[package]
+name = "async-ffmpeg-sidecar"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.93"
+futures-util = "0.3.31"
+tokio = { version = "1.41.1", features = ["process", "macros", "rt", "io-util"] }
