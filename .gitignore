@@ -1,2 +1,5 @@
 /target
 /.idea
+
+output/*.mp4
+output/*.jpg
