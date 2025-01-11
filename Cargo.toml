@@ -13,7 +13,7 @@ license = "MIT"
 [features]
 default = ["download_ffmpeg"]
 # rt is necessary for spawn_blocking since async zip crates has no high level api and I don't want to impolement zip extraction
-download_ffmpeg = ["dep:reqwest", "tokio/fs", "tokio/rt", "dep:async_zip", "dep:sanitize-filename"]
+download_ffmpeg = ["dep:reqwest", "tokio/fs", "tokio/rt", "dep:async_zip", "dep:sanitize-filename", "dep:krata-tokio-tar", "dep:async-compression"]
 
 [dependencies]
 anyhow = "1.0.93"
@@ -23,4 +23,10 @@ reqwest = { version = "0.12.12", optional = true, default-features = false, feat
 tokio-util = { version = "0.7.13", features = ["compat"] }
 sanitize-filename = { version = "0.6.0", optional = true }
 futures = "0.3.31"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
 async_zip = { version = "0.0.17", features = ["full"], optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+krata-tokio-tar = { version = "0.4.2", optional = true }
+async-compression = { version = "0.4.18", optional = true, features = ["xz", "tokio"] }

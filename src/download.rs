@@ -4,14 +4,12 @@ use anyhow::{Context, Result};
 
 #[cfg(feature = "download_ffmpeg")]
 use std::path::{Path, PathBuf};
-
 #[cfg(feature = "download_ffmpeg")]
 use tokio::fs::File;
 
 use futures_util::StreamExt;
 // use tokio::fs::{create_dir_all, File};
 use tokio::io::AsyncWriteExt;
-use tokio::io::BufReader;
 
 /// The default directory name for unpacking a downloaded FFmpeg release archive.
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
@@ -194,7 +192,7 @@ pub async fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Resu
 
   #[cfg(target_os = "linux")]
   {
-    unimplemented!()
+    untar_file(file, &temp_folder).await?
   }
 
   #[cfg(not(target_os = "linux"))]
@@ -202,17 +200,29 @@ pub async fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Resu
     unzip_file(file, &temp_folder).await?
   }
 
+  let inner_folder = read_dir(&temp_folder)
+    .await?
+    .next_entry()
+    .await
+    .context("Failed to get inner folder")?
+    .unwrap();
   let (ffmpeg, ffplay, ffprobe) = if cfg!(target_os = "windows") {
-    let inner_folder = read_dir(&temp_folder)
-      .await?
-      .next_entry()
-      .await
-      .context("Failed to get inner folder")?
-      .unwrap();
     (
       inner_folder.path().join("bin/ffmpeg.exe"),
       inner_folder.path().join("bin/ffplay.exe"),
       inner_folder.path().join("bin/ffprobe.exe"),
+    )
+  } else if cfg!(target_os = "linux") {
+    (
+      inner_folder.path().join("./ffmpeg"),
+      inner_folder.path().join("./ffplay"), // <- no ffplay on linux
+      inner_folder.path().join("./ffprobe"),
+    )
+  } else if cfg!(target_os = "macos") {
+    (
+      temp_folder.join("ffmpeg"),
+      temp_folder.join("ffplay"),  // <- no ffplay on mac
+      temp_folder.join("ffprobe"), // <- no ffprobe on mac
     )
   } else {
     anyhow::bail!("Unsupported platform");
@@ -253,11 +263,12 @@ async fn move_bin(path: &Path, binary_folder: &Path) -> Result<()> {
   anyhow::Ok(())
 }
 
-#[cfg(feature = "download_ffmpeg")]
+#[cfg(all(feature = "download_ffmpeg", not(target_os = "linux")))]
 async fn unzip_file(archive: File, out_dir: &Path) -> Result<()> {
   use async_zip::base::read::seek::ZipFileReader;
   use tokio::fs::create_dir_all;
   use tokio::fs::OpenOptions;
+  use tokio::io::BufReader;
   use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
 
   let archive = BufReader::new(archive).compat();
@@ -316,7 +327,7 @@ async fn unzip_file(archive: File, out_dir: &Path) -> Result<()> {
 }
 
 /// Returns a relative path without reserved names, redundant separators, ".", or "..".
-#[cfg(feature = "download_ffmpeg")]
+#[cfg(all(feature = "download_ffmpeg", not(target_os = "linux")))]
 fn sanitize_file_path(path: &str) -> PathBuf {
   // Replaces backwards slashes
   path
@@ -325,4 +336,34 @@ fn sanitize_file_path(path: &str) -> PathBuf {
     .split('/')
     .map(sanitize_filename::sanitize)
     .collect()
+}
+
+#[cfg(all(feature = "download_ffmpeg", target_os = "linux"))]
+async fn untar_file(archive: File, out_dir: &Path) -> Result<()> {
+  use async_compression::tokio::bufread::XzDecoder;
+  use tokio::fs::create_dir_all;
+  use tokio::io::BufReader;
+  use tokio_tar::Archive;
+  let archive = BufReader::new(archive);
+  let archive = XzDecoder::new(archive);
+  let mut archive = Archive::new(archive);
+  let mut entries = archive.entries()?;
+  while let Some(file) = entries.next().await {
+    let mut f = file?;
+    let path = f.path()?;
+    let path = out_dir.join(path);
+
+    if path.is_dir() {
+      create_dir_all(&path).await?
+    } else if path.is_file() {
+      if let Some(parent) = path.parent() {
+        create_dir_all(parent).await?
+      }
+
+      let mut out_file = File::create(&path).await?;
+      tokio::io::copy(&mut f, &mut out_file).await?;
+    }
+  }
+
+  Ok(())
 }
