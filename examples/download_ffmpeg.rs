@@ -1,11 +1,13 @@
+use anyhow::Context;
+
 #[cfg(feature = "download_ffmpeg")]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
   use async_ffmpeg_sidecar::{
-      command::ffmpeg_is_installed,
-      download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
-      paths::sidecar_dir,
-      version::ffmpeg_version_with_path,
+    command::ffmpeg_is_installed,
+    download::{check_latest_version, download_ffmpeg_package, ffmpeg_download_url, unpack_ffmpeg},
+    paths::sidecar_dir,
+    version::ffmpeg_version_with_path,
   };
   use std::env::current_exe;
 
@@ -40,6 +42,7 @@ async fn main() -> anyhow::Result<()> {
   // For more advanced use cases like async streaming or download progress
   // updates, you could replace this with your own download function.
   println!("Downloading from: {:?}", download_url);
+  tokio::fs::create_dir_all(&destination).await?;
   let archive_path = download_ffmpeg_package(download_url, &destination).await?;
   println!("Downloaded package: {:?}", archive_path);
 
@@ -48,7 +51,9 @@ async fn main() -> anyhow::Result<()> {
   unpack_ffmpeg(&archive_path, &destination).await?;
 
   // Use the freshly installed FFmpeg to check the version number
-  let version = ffmpeg_version_with_path(destination.join("ffmpeg")).await?;
+  let version = ffmpeg_version_with_path(destination.join("ffmpeg"))
+    .await
+    .context("error running ffmpeg")?;
   println!("FFmpeg version: {}", version);
 
   println!("Done! 🏁");

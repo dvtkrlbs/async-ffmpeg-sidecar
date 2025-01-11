@@ -137,13 +137,13 @@ pub async fn check_latest_version() -> Result<String> {
   } else if cfg!(target_os = "macos") {
     parse_macos_version(&version_string).context("failed to parse version number (macos variant)")
   } else if cfg!(target_os = "linux") {
-    parse_linux_version(&version_string).context("failed to parse version number (macos variant)")
+    parse_linux_version(&version_string).context("failed to parse version number (linux variant)")
   } else {
     anyhow::bail!("unsupported platform")
   }
 }
 
-/// Make a HTTP request to download an archive from the latest published release online
+/// Make an HTTP request to download an archive from the latest published release online
 #[cfg(feature = "download_ffmpeg")]
 pub async fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf> {
   use anyhow::Context;
@@ -229,14 +229,17 @@ pub async fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Resu
     anyhow::bail!("Unsupported platform");
   };
 
-  move_bin(&ffmpeg, &binary_folder).await?;
+  set_executable_permission(&ffmpeg).await?;
+  move_bin(&ffmpeg, binary_folder).await?;
 
   if ffprobe.exists() {
-    move_bin(&ffprobe, &binary_folder).await?;
+    set_executable_permission(&ffprobe).await?;
+    move_bin(&ffprobe, binary_folder).await?;
   }
 
   if ffplay.exists() {
-    move_bin(&ffplay, &binary_folder).await?;
+    set_executable_permission(&ffplay).await?;
+    move_bin(&ffplay, binary_folder).await?;
   }
 
   // Delete archive and unpacked files
@@ -262,6 +265,27 @@ async fn move_bin(path: &Path, binary_folder: &Path) -> Result<()> {
 
   rename(path, file_name).await?;
   anyhow::Ok(())
+}
+#[cfg(all(feature = "download_ffmpeg", target_family = "unix"))]
+async fn set_executable_permission(path: &Path) -> Result<()> {
+  #[cfg(target_family = "unix")]
+  {
+    use tokio::fs::set_permissions;
+
+    use std::os::unix::fs::PermissionsExt;
+    let mut perms = path.metadata()?.permissions();
+
+    perms.set_mode(perms.mode() | 0o100);
+
+    set_permissions(path, perms).await?;
+  }
+
+  Ok(())
+}
+
+#[cfg(all(feature = "download_ffmpeg", not(target_family = "unix")))]
+async fn set_executable_permission(_path: &Path) -> Result<()> {
+  Ok(())
 }
 
 #[cfg(all(feature = "download_ffmpeg", not(target_os = "linux")))]
@@ -342,29 +366,13 @@ fn sanitize_file_path(path: &str) -> PathBuf {
 #[cfg(all(feature = "download_ffmpeg", target_os = "linux"))]
 async fn untar_file(archive: File, out_dir: &Path) -> Result<()> {
   use async_compression::tokio::bufread::XzDecoder;
-  use tokio::fs::create_dir_all;
   use tokio::io::BufReader;
   use tokio_tar::Archive;
   let archive = BufReader::new(archive);
   let archive = XzDecoder::new(archive);
   let mut archive = Archive::new(archive);
-  let mut entries = archive.entries()?;
-  while let Some(file) = entries.next().await {
-    let mut f = file?;
-    let path = f.path()?;
-    let path = out_dir.join(path);
 
-    if path.is_dir() {
-      create_dir_all(&path).await?
-    } else if path.is_file() {
-      if let Some(parent) = path.parent() {
-        create_dir_all(parent).await?
-      }
-
-      let mut out_file = File::create(&path).await?;
-      tokio::io::copy(&mut f, &mut out_file).await?;
-    }
-  }
+  archive.unpack(out_dir).await?;
 
   Ok(())
 }

@@ -16,45 +16,45 @@ use std::str::Chars;
 /// assert_eq!(iter.next(), None);
 /// ```
 pub struct CommaIter<'a> {
-    chars: Chars<'a>,
+  chars: Chars<'a>,
 }
 
 impl<'a> CommaIter<'a> {
-    pub fn new(string: &'a str) -> Self {
-        Self {
-            chars: string.chars(),
-        }
+  pub fn new(string: &'a str) -> Self {
+    Self {
+      chars: string.chars(),
     }
+  }
 }
 
 impl<'a> Iterator for CommaIter<'a> {
-    type Item = &'a str;
+  type Item = &'a str;
 
-    /// Return the next comma-separated section, not including the comma.
-    fn next(&mut self) -> Option<Self::Item> {
-        let chars_clone = self.chars.clone();
-        let mut i = 0;
-        while let Some(char) = self.chars.next() {
-            match char {
-                '(' => {
-                    // advance until closing paren (only handles one level nesting)
-                    for close_paren in self.chars.by_ref() {
-                        i += 1;
-                        if close_paren == ')' {
-                            break;
-                        }
-                    }
-                }
-                ',' => break,
-                _ => {}
-            }
-
+  /// Return the next comma-separated section, not including the comma.
+  fn next(&mut self) -> Option<Self::Item> {
+    let chars_clone = self.chars.clone();
+    let mut i = 0;
+    while let Some(char) = self.chars.next() {
+      match char {
+        '(' => {
+          // advance until closing paren (only handles one level nesting)
+          for close_paren in self.chars.by_ref() {
             i += 1;
+            if close_paren == ')' {
+              break;
+            }
+          }
         }
+        ',' => break,
+        _ => {}
+      }
 
-        match i {
-            0 => None,
-            _ => Some(&chars_clone.as_str()[..i]),
-        }
+      i += 1;
     }
+
+    match i {
+      0 => None,
+      _ => Some(&chars_clone.as_str()[..i]),
+    }
+  }
 }
