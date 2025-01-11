@@ -24,4 +24,4 @@ jobs:
       - name: Check without default features
         run: cargo check --no-default-features
       - name: Run tests
-        run: cargo test --all-targets --all-features --verbose -- --skip lib.rs
+        run: cargo test --all-targets --all-features --examples --verbose
