@@ -64,6 +64,7 @@ pub async fn auto_download() -> Result<()> {
 
   let download_url = ffmpeg_download_url()?;
   let destination = sidecar_dir()?;
+  tokio::fs::create_dir_all(&destination).await?;
   let archive_path = download_ffmpeg_package(download_url, &destination).await?;
   unpack_ffmpeg(&archive_path, &destination).await?;
 
