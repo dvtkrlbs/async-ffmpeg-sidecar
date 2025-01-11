@@ -3,6 +3,7 @@ pub mod comma_iter;
 pub mod command;
 pub mod download;
 pub mod event;
+pub mod ffprobe;
 pub mod log_parser;
 pub mod metadata;
 pub mod paths;
