@@ -1,0 +1,47 @@
+on:
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    branches:
+      - 'main'
+
+name: CI
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: test everything
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+          - macos-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: FedericoCarboni/setup-ffmpeg@v3
+        if: runner.os != 'macOS'
+
+      - name: Install ffmpeg
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Check without default features
+        run: cargo check --no-default-features
+        
+      - name: Run tests
+        run: cargo test --all-targets --all-features --examples --verbose
