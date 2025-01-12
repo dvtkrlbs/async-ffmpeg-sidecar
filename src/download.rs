@@ -1,15 +1,11 @@
 //! Utilities for downloading and unpacking FFmpeg binaries
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 #[cfg(feature = "download_ffmpeg")]
 use std::path::{Path, PathBuf};
 #[cfg(feature = "download_ffmpeg")]
 use tokio::fs::File;
-
-use futures_util::StreamExt;
-// use tokio::fs::{create_dir_all, File};
-use tokio::io::AsyncWriteExt;
 
 /// The default directory name for unpacking a downloaded FFmpeg release archive.
 pub const UNPACK_DIRNAME: &str = "ffmpeg_release_temp";
@@ -148,6 +144,8 @@ pub async fn check_latest_version() -> Result<String> {
 pub async fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf> {
   use anyhow::Context;
   use tokio::fs::File;
+  use tokio::io::AsyncWriteExt;
+  use futures_util::StreamExt;
 
   let filename = Path::new(url)
     .file_name()
@@ -257,6 +255,7 @@ pub async fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Resu
 #[cfg(feature = "download_ffmpeg")]
 async fn move_bin(path: &Path, binary_folder: &Path) -> Result<()> {
   use tokio::fs::rename;
+  use anyhow::Context;
   let file_name = binary_folder.join(
     path
       .file_name()
@@ -295,6 +294,7 @@ async fn unzip_file(archive: File, out_dir: &Path) -> Result<()> {
   use tokio::fs::OpenOptions;
   use tokio::io::BufReader;
   use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
+  use anyhow::Context;
 
   let archive = BufReader::new(archive).compat();
 
