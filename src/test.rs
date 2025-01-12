@@ -3,9 +3,9 @@ use crate::event::FfmpegEvent;
 use crate::version::ffmpeg_version;
 use futures_util::stream::StreamExt;
 
-fn approx_eq(a: f32, b: f32, error: f32) -> bool {
-  (a - b).abs() < error
-}
+// fn approx_eq(a: f32, b: f32, error: f32) -> bool {
+//   (a - b).abs() < error
+// }
 
 /// Returns `err` if the timeout task finishes before the FFmpeg
 
