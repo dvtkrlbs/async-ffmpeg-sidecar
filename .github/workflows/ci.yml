@@ -24,7 +24,7 @@ jobs:
     strategy:
       matrix:
         os:
-          - windows-latest
+          #          - windows-2025 FIXME: really annoying platform 
           - ubuntu-latest
           - macos-latest
     steps:
@@ -32,17 +32,26 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - uses: rui314/setup-mold@v1
         if: runner.os == 'linux'
-      - uses: FedericoCarboni/setup-ffmpeg@v3
-        if: runner.os != 'macOS'
+
+      - name: Install ffmpeg
+        if: runner.os == 'Windows'
+        run: winget install Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
+
+      - name: Refresh env variables (Windows)
+        if: runner.os == 'Windows'
+        run: refreshenv
+
+
+      - name: Install ffmpeg
+        if: runner.os == 'linux'
+        run: sudo apt-get install ffmpeg
 
       - name: Install ffmpeg
         if: runner.os == 'macOS'
         run: brew install ffmpeg
+
       - name: Install cargo-nextest
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-nextest
-          locked: true
+        run: cargo install cargo-nextest --locked
 
       - name: Build
         run: cargo build --verbose
@@ -51,4 +60,4 @@ jobs:
         run: cargo check --no-default-features
         
       - name: Run tests
-        run: cargo nextest --all-targets --all-features --examples --verbose
+        run: cargo nextest run --all-targets --all-features --examples --verbose
