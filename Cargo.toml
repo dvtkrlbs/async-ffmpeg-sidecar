@@ -1,6 +1,6 @@
 [package]
 name = "async-ffmpeg-sidecar"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 rust-version = "1.79.0"
 description = "Wrap a standalone FFmpeg binary in an intiutive Stream interface."
