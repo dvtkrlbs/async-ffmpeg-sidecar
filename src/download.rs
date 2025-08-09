@@ -143,9 +143,9 @@ pub async fn check_latest_version() -> Result<String> {
 #[cfg(feature = "download_ffmpeg")]
 pub async fn download_ffmpeg_package(url: &str, download_dir: &Path) -> Result<PathBuf> {
   use anyhow::Context;
+  use futures_util::StreamExt;
   use tokio::fs::File;
   use tokio::io::AsyncWriteExt;
-  use futures_util::StreamExt;
 
   let filename = Path::new(url)
     .file_name()
@@ -227,8 +227,10 @@ pub async fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Resu
     anyhow::bail!("Unsupported platform");
   };
 
-  set_executable_permission(&ffmpeg).await?;
-  move_bin(&ffmpeg, binary_folder).await?;
+  if ffmpeg.exists() {
+    set_executable_permission(&ffmpeg).await?;
+    move_bin(&ffmpeg, binary_folder).await?;
+  }
 
   if ffprobe.exists() {
     set_executable_permission(&ffprobe).await?;
@@ -254,8 +256,8 @@ pub async fn unpack_ffmpeg(from_archive: &PathBuf, binary_folder: &Path) -> Resu
 
 #[cfg(feature = "download_ffmpeg")]
 async fn move_bin(path: &Path, binary_folder: &Path) -> Result<()> {
-  use tokio::fs::rename;
   use anyhow::Context;
+  use tokio::fs::rename;
   let file_name = binary_folder.join(
     path
       .file_name()
@@ -289,12 +291,12 @@ async fn set_executable_permission(_path: &Path) -> Result<()> {
 
 #[cfg(all(feature = "download_ffmpeg", not(target_os = "linux")))]
 async fn unzip_file(archive: File, out_dir: &Path) -> Result<()> {
+  use anyhow::Context;
   use async_zip::base::read::seek::ZipFileReader;
   use tokio::fs::create_dir_all;
   use tokio::fs::OpenOptions;
   use tokio::io::BufReader;
   use tokio_util::compat::{TokioAsyncReadCompatExt, TokioAsyncWriteCompatExt};
-  use anyhow::Context;
 
   let archive = BufReader::new(archive).compat();
 
