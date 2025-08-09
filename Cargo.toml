@@ -11,15 +11,17 @@ readme = "README.md"
 license = "MIT"
 
 [features]
-default = ["download_ffmpeg"]
+default = ["download_ffmpeg", "rustls_tls"]
 # rt is necessary for spawn_blocking since async zip crates has no high level api and I don't want to impolement zip extraction
 download_ffmpeg = ["dep:reqwest", "tokio/fs", "tokio/rt", "dep:async_zip", "dep:sanitize-filename", "dep:krata-tokio-tar", "dep:async-compression"]
+rustls_tls = ["reqwest/rustls-tls-native-roots"]
+native_tls = ["reqwest/native-tls"]
 
 [dependencies]
 anyhow = "1.0.93"
 futures-util = { version = "0.3.31", features = ["io"] }
 tokio = { version = "1.41.1", features = ["process", "macros", "io-util", "rt-multi-thread"] }
-reqwest = { version = "0.12.12", optional = true, default-features = false, features = ["stream", "http2", "charset", "macos-system-configuration", "rustls-tls-native-roots"] }
+reqwest = { version = "0.12.12", optional = true, default-features = false, features = ["stream", "http2", "charset", "macos-system-configuration"] }
 tokio-util = { version = "0.7.13", features = ["compat"] }
 sanitize-filename = { version = "0.6.0", optional = true }
 futures = "0.3.31"
